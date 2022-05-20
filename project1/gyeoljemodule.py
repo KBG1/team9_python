@@ -10,16 +10,12 @@ class DemoPro(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
         self._frame = None
-        self.switch_frame(MainPage)
+        self.switch_frame(StartPage)
         self.geometry("600x800+450+5")
         self.resizable(False, False)
         self.configure(bg="#ffffff")
         self.container = tk.Frame(self)
         self.container.pack(fill="both", expand=True)
-        '''
-        self.protocol("WM_DELETE_WINDOW", ReceiptPage.clear_DB(app))
-        app.destroy()
-        '''
 
     def switch_frame(self, frame_class):
         new_frame = frame_class(self)
@@ -96,23 +92,26 @@ class Sharing(tk.Frame, Font, ImageOpen, OpenDB):
 
 
 # 첫 화면 페이지 #
-class StartPage(tk.Frame):
+class StartPage(Sharing):
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
+        Sharing.__init__(self, master)
+
+        self.cur.execute("DELETE FROM orderTable")
+        self.order_DB.commit()
 
         # used frame list #
-        self.ad_frm = tk.Frame(self, width=600, height=600, bg="#ffffff", relief="solid", bd=2)
+        self.ad_frm = tk.Frame(self, width=600, height=600, relief="solid", bd=2)
         self.ad_frm.pack(fill="both", expand=True)
         self.ad_frm.propagate(False)
-        self.placetoeat_frm = tk.Frame(self, width=600, height=200, bg="#ffffff", relief="solid", bd=2)
+        self.placetoeat_frm = tk.Frame(self, width=600, height=200, relief="solid", bd=2)
         self.placetoeat_frm.pack(fill="both", expand=True)
         self.placetoeat_frm.propagate(False)
 
         # in place to eat frame #
-        tk.Button(self.placetoeat_frm, text="매장에서 먹을래요", relief="flat",
-                  command=lambda: master.switch_frame(MainPage)).place(x=100, y=650, width=200, height=100)
-        tk.Button(self.placetoeat_frm, text="포장해서 갈게요", relief="flat",
-                  command=lambda: master.switch_frame(MainPage)).place(x=300, y=650, width=200, height=100)
+        tk.Button(self.placetoeat_frm, text="매장에서 먹을래요", font=self.font2, relief="flat",
+                  command=lambda: master.switch_frame(MainPage)).place(x=0, y=40, width=300, height=100)
+        tk.Button(self.placetoeat_frm, text="포장해서 갈게요", font=self.font2, relief="flat",
+                  command=lambda: master.switch_frame(MainPage)).place(x=300, y=40, width=300, height=100)
 
 
 # 메뉴 선택 페이지 #
