@@ -160,7 +160,7 @@ class MainPage(Sharing):
         # in logo frame #
         # 처음으로 버튼 - StartPage로 프레임 전환
         self.go_startp_btn = tk.Button(self.logo_frm, image=self.go_startp_btn_img, relief="flat", bd=0,
-                                       command=lambda: master.switch_frame(StartPage))
+                                       command=lambda: [self.reset_cart(), master.switch_frame(StartPage)])
         self.go_startp_btn.place(x=20, y=50, width=100, height=30)
 
         # in menu button frame #
@@ -629,5 +629,7 @@ class ReceiptPage(Sharing):
         MenuInfo.order_ttl = 0
 
 
+# 창 닫을 때 데이터베이스 초기화 어떻게 해야 할지 모르겠어서 다시 열면 전체취소 눌러줘야함..
+# 아니면 첫 화면으로 돌아갔다가 끄거나..
 app = DemoPro()
 app.mainloop()
