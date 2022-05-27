@@ -169,22 +169,15 @@ class CouponPage(Sharing):
     def __init__(self, master):
         Sharing.__init__(self, master)
 
+        # 변수 리스트 #
+        self.check_open_tk = 1
+        self.mobile = 0
+        self.coupon_tbl = 0
         # 쿠폰 생성 - 쿠폰의 생성 주기? 프로그램 실행->닫을 때까지 한 번만 생성하고 싶은데..
         self.create_coupon()
-
-        # 쿠폰창 열렸는지 확인하는 변수
-        self.check_open_tk = 1
-
-        # 쿠폰창
-        self.mobile = tk.Toplevel(app)
-        self.mobile.geometry("400x600+180+20")
-        tk.Label(self.mobile, text="사용 가능한 쿠폰", font=self.font2).pack()
-        self.coupon_tbl = ttk.Treeview(self.mobile, columns=["쿠폰코드", "적용메뉴", "유형", "할인금액"],
-                                       displaycolumns=["쿠폰코드", "적용메뉴", "유형", "할인금액"])
-        self.coupon_tbl.place(x=0, y=50, width=400, height=400)
-        self.set_table()
-        self.mobile.protocol("WM_DELETE_WINDOW", self.show_coupon)
-
+        # 쿠폰창 생성
+        self.create_mobile()
+        
         # 프레임 리스트 #
         # 로고 프레임
         self.logo_frm = tk.Frame(self, width=480, height=100)
@@ -194,14 +187,14 @@ class CouponPage(Sharing):
         self.announce_frm = tk.Frame(self, width=480, height=150, relief="solid", bd=1)
         self.announce_frm.pack(fill="both", expand=True)
         self.announce_frm.propagate(False)
-        # 이미지 프레임
-        self.cp_img_frm = tk.Frame(self, width=480, height=450, relief="solid",bd=1)
-        self.cp_img_frm.pack(fill="both", expand=True)
-        self.announce_frm.propagate(False)
         # 입력 프레임
         self.entry_frm = tk.Frame(self, width=480, height=100, relief="solid", bd=1)
         self.entry_frm.pack(fill="both", expand=True)
         self.entry_frm.propagate(False)
+        # 이미지 프레임
+        self.cp_img_frm = tk.Frame(self, width=480, height=450, relief="solid",bd=1)
+        self.cp_img_frm.pack(fill="both", expand=True)
+        self.cp_img_frm.propagate(False)
 
         # in logo frame #
         # 처음으로 버튼 - StartPage로 프레임 전환
@@ -240,17 +233,20 @@ class CouponPage(Sharing):
             cptype = Coupon.coupon_type[coupon[2]]
             self.coupon_tbl.insert('', 'end', text=coupon[0], values=(mnname, cptype, coupon[3]),)
 
+    def create_mobile(self):
+        self.mobile = tk.Toplevel(app)
+        self.mobile.geometry("400x600+80+20")
+        tk.Label(self.mobile, text="사용 가능한 쿠폰", font=self.font2).pack()
+        self.coupon_tbl = ttk.Treeview(self.mobile, columns=["쿠폰코드", "적용메뉴", "유형", "할인금액"],
+                                       displaycolumns=["쿠폰코드", "적용메뉴", "유형", "할인금액"])
+        self.coupon_tbl.place(x=0, y=50, width=400, height=400)
+        self.set_table()
+        self.mobile.protocol("WM_DELETE_WINDOW", self.show_coupon)
 
     def show_coupon(self):
         if self.check_open_tk == 0:
             self.check_open_tk = 1
-            self.mobile = tk.Toplevel(app)
-            self.mobile.geometry("300x500+180+20")
-            tk.Label(self.mobile, text="사용 가능한 쿠폰", font=self.font2).pack()
-            self.coupon_lb = tk.Listbox(self.mobile)
-            self.coupon_lb.place(x=0, y=50, width=300, height=400)
-            self.insert_lb()
-            self.mobile.protocol("WM_DELETE_WINDOW", self.show_coupon)
+            self.create_mobile()
         else:
             self.check_open_tk = 0
             self.mobile.destroy()
