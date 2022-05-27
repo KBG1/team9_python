@@ -193,6 +193,7 @@ class CouponPage(Sharing):
         tk.Label(self.mobile, text="사용 가능한 쿠폰", font=self.font2).pack()
         self.coupon_lb = tk.Listbox(self.mobile)
         self.coupon_lb.place(x=0, y=50, width=300, height=400)
+        self.show_coupon()
 
         # in announce frame #
         tk.Label(self.announce_frm, text="쿠폰 번호를 입력해 주세요", font=self.title_font).pack()
@@ -205,12 +206,12 @@ class CouponPage(Sharing):
 
     def show_coupon(self):
         self.cur2.execute("SELECT * FROM couponTable")
-        while True:
-            couponlist = self.cur2.fetchone()
-            if couponlist is None: break
-            mnname = MenuInfo.menu_code[couponlist[1]]
-            cptype = Coupon.coupon_type[couponlist[2]]
-            self.coupon_lb.insert(0, "%s %s %s %d" % (couponlist[0], mnname, cptype, couponlist[3]))
+        couponlist = self.cur2.fetchall()
+        for coupon in couponlist:
+            mnname = MenuInfo.menu_code[coupon[1]]
+            cptype = Coupon.coupon_type[coupon[2]]
+            self.coupon_lb.insert(0, "%s %s %s %d" % (coupon[0], mnname, cptype, coupon[3]))
+            self.coupon_lb.place(x=0, y=50, width=300, height=400)
 
     def check_coupon(self, ent):
         self.cur2.execute("SELECT couponID, menuID, discntPrice FROM couponTable")
@@ -316,7 +317,7 @@ class MainPage(Sharing):
                   command=self.reset_cart).place(x=280, y=70, width=120, height=30)
         # 결제하기 버튼 - OrderCheckPage로 프레임 전환
         tk.Button(self.cart_frm, image=self.mv_pay_btn_img, relief="flat", bd=0,
-                  command=lambda: master.switch_frame(OrderCheckPage)).place(x=400, y=0, width=80, height=100)
+                  command=lambda: self.check_order(master)).place(x=400, y=0, width=80, height=100)
 
         # in menu frame #
         # 카드 잔액 정보
@@ -444,6 +445,10 @@ class MainPage(Sharing):
         for code in MenuInfo.menu_quantity.keys():
             MenuInfo.menu_quantity[code] = 0
 
+    def check_order(self, master):
+        if MenuInfo.order_ttl != 0:
+            master.switch_frame(OrderCheckPage)
+
 
 # 주문내역 페이지 #
 class OrderCheckPage(Sharing):
@@ -527,15 +532,17 @@ class PaymentPage(Sharing):
 
         # in announce frame #
         # 안내메세지 출력
-        tk.Label(self.announce_frm, text="결제 방법을 선택해 주세요", font=self.title_font).place(x=120, y=50)
+        tk.Label(self.announce_frm, text="결제 방법을 선택해 주세요", font=self.title_font).place(x=60, y=50)
 
         # in select button frame #
         # 카드 결제 버튼 - DisCountPage로 프레임 전환
-        tk.Button(self.select_btn_frm, text="카드 결제\nCARD PAYMENT", font=self.font2,
-                  command=lambda: master.switch_frame(DisCountPage)).place(x=75, y=20, width=150, height=150)
+        self.card_btn = tk.Button(self.select_btn_frm, text="카드 결제\nCARD PAYMENT",
+                                  command=lambda: master.switch_frame(DisCountPage))
+        self.card_btn.place(x=75, y=20, width=150, height=150)
         # 모바일 상품권 버튼 - 쿠폰 관련 Page로 프레임 전환(미구현), 현재는 DisCountPage로 프레임 전환
-        tk.Button(self.select_btn_frm, text="모바일 상품권\nMOBILE GIFT CARD", font=self.font2,
-                  command=lambda: master.switch_frame(DisCountPage)).place(x=225, y=20, width=150, height=150)
+        self.coupon_btn = tk.Button(self.select_btn_frm, text="모바일 상품권\nMOBILE GIFT CARD",
+                                    command=lambda: master.switch_frame(DisCountPage), state=tk.DISABLED)
+        self.coupon_btn.place(x=225, y=20, width=150, height=150)
 
 # 할인수단 선택 페이지 #
 class DisCountPage(Sharing):
@@ -632,14 +639,14 @@ class DisCountRewards(Sharing):
         # 사용하기 버튼 - 적립금이 5000점 미만인 경우 버튼 비활성화
         if PersonalCard.rewards_point < 5000:
             self.button1 = tk.Button(self.btn_frm, text="사용하기", state=tk.DISABLED)
-            self.button1.place(x=300, y=0, width=200, height=133)
+            self.button1.place(x=240, y=0, width=200, height=133)
         # 적립금이 5000점 이상인 경우 활성화, 결제 진행
         else:
             self.button1 = tk.Button(self.btn_frm, text="사용하기", command=lambda: self.pay_sequence(master))
-            self.button1.place(x=300, y=0, width=200, height=133)
+            self.button1.place(x=240, y=0, width=200, height=133)
         # 취소 버튼 - DisCountPage로 프레임 전환
         self.button2 = tk.Button(self.btn_frm, text="취소", command=lambda: master.switch_frame(DisCountPage))
-        self.button2.place(x=100, y=0, width=200, height=133)
+        self.button2.place(x=40, y=0, width=200, height=133)
 
     # 결제 진행 함수 #
     def pay_sequence(self, master):
@@ -715,7 +722,7 @@ class ReceiptPage(Sharing):
         tk.Label(receipt_tk, text="메뉴     수량     가격", font=self.font2).pack()
         tk.Label(receipt_tk, text="=========================", font=self.font2).pack()
         # DB에서 정보 받아와서 띄움
-        self.cur.execute("SELECT menuName, quantity, finalCost FROM orderTable")
+        self.cur.execute("SELECT menuName, quantity, finalCost, updateTime FROM orderTable")
         while True:
             row = self.cur.fetchone()
             if row is None:
