@@ -97,7 +97,7 @@ class ImageOpen:
         self.choose_btn_img = ImageTk.PhotoImage(self.choose_btn_img)
 
 
-# DB 열기 - 수정 요망 #
+# DB 열기 #
 class OpenDB:
     def __init__(self):
         # orderTable column: menuID/menuName/quantity/finalCost/updateTime
@@ -109,7 +109,7 @@ class OpenDB:
         self.coupon_DB = sql3.connect("couponDB")
         self.cur2 = self.coupon_DB.cursor()
 
-    def create_coupon(self):    # 값이 들어가긴 하는데... 왜 리스트박스에 안 뜨지?
+    def create_coupon(self):
         num_of_coupons = 4
         sql = "INSERT INTO couponTable VALUES (?, ?, ?, ?)"
         for i in range(num_of_coupons):
@@ -143,9 +143,6 @@ class StartPage(Sharing):
         self.cur2.execute("DELETE FROM couponTable")
         self.coupon_DB.commit()
 
-        # 쿠폰 생성 #
-        self.create_coupon()
-
         # 프레임 리스트 #
         # 광고 프레임
         self.ad_frm = tk.Frame(self, width=480, height=550, relief="solid", bd=1)
@@ -171,17 +168,33 @@ class StartPage(Sharing):
 class CouponPage(Sharing):
     def __init__(self, master):
         Sharing.__init__(self, master)
-        
-        # 프레임 리스트 #
+
+        # 쿠폰 생성 - 쿠폰의 생성 주기? 프로그램 실행->닫을 때까지 한 번만 생성하고 싶은데..
+        self.create_coupon()
+
+        # 쿠폰창 열렸는지 확인하는 변수
+        self.check_open_tk = 1
+
         # 쿠폰창
         self.mobile = tk.Toplevel(app)
         self.mobile.geometry("300x500+180+20")
+        tk.Label(self.mobile, text="사용 가능한 쿠폰", font=self.font2).pack()
+        self.coupon_lb = tk.Listbox(self.mobile)
+        self.coupon_lb.place(x=0, y=50, width=300, height=400)
+        self.insert_lb()
+        self.mobile.protocol("WM_DELETE_WINDOW", self.show_coupon)
+
+        # 프레임 리스트 #
+        # 로고 프레임
+        self.logo_frm = tk.Frame(self, width=480, height=100)
+        self.logo_frm.pack(fill="both", expand=True)
+        self.logo_frm.propagate(False)
         # 안내메세지 프레임
         self.announce_frm = tk.Frame(self, width=480, height=150, relief="solid", bd=1)
         self.announce_frm.pack(fill="both", expand=True)
         self.announce_frm.propagate(False)
         # 이미지 프레임
-        self.cp_img_frm = tk.Frame(self, width=480, height=550, relief="solid",bd=1)
+        self.cp_img_frm = tk.Frame(self, width=480, height=450, relief="solid",bd=1)
         self.cp_img_frm.pack(fill="both", expand=True)
         self.announce_frm.propagate(False)
         # 입력 프레임
@@ -189,14 +202,17 @@ class CouponPage(Sharing):
         self.entry_frm.pack(fill="both", expand=True)
         self.entry_frm.propagate(False)
 
-        # in mobile window #
-        tk.Label(self.mobile, text="사용 가능한 쿠폰", font=self.font2).pack()
-        self.coupon_lb = tk.Listbox(self.mobile)
-        self.coupon_lb.place(x=0, y=50, width=300, height=400)
-        self.show_coupon()
+        # in logo frame #
+        # 처음으로 버튼 - StartPage로 프레임 전환
+        self.go_startp_btn = tk.Button(self.logo_frm, image=self.go_startp_btn_img, relief="flat", bd=0,
+                                       command=lambda: master.switch_frame(StartPage))
+        self.go_startp_btn.place(x=20, y=50, width=100, height=30)
 
         # in announce frame #
         tk.Label(self.announce_frm, text="쿠폰 번호를 입력해 주세요", font=self.title_font).pack()
+        self.coupon_list_btn = tk.Button(self.announce_frm, text="사용 가능한 쿠폰 확인", relief="solid", bd=1,
+                                         command=self.show_coupon)
+        self.coupon_list_btn.place(x=165, y=70, width=150, height=30)
 
         # in entry frame #
         self.ent = tk.Entry(self.entry_frm)
@@ -204,7 +220,7 @@ class CouponPage(Sharing):
         self.ok_btn = tk.Button(self.entry_frm, text="확인", command=lambda: self.check_coupon(str(self.ent.get())))
         self.ok_btn.place(x=215, y=50, width=50, height=30)
 
-    def show_coupon(self):
+    def insert_lb(self):
         self.cur2.execute("SELECT * FROM couponTable")
         couponlist = self.cur2.fetchall()
         for coupon in couponlist:
@@ -212,6 +228,20 @@ class CouponPage(Sharing):
             cptype = Coupon.coupon_type[coupon[2]]
             self.coupon_lb.insert(0, "%s %s %s %d" % (coupon[0], mnname, cptype, coupon[3]))
             self.coupon_lb.place(x=0, y=50, width=300, height=400)
+
+    def show_coupon(self):
+        if self.check_open_tk == 0:
+            self.check_open_tk = 1
+            self.mobile = tk.Toplevel(app)
+            self.mobile.geometry("300x500+180+20")
+            tk.Label(self.mobile, text="사용 가능한 쿠폰", font=self.font2).pack()
+            self.coupon_lb = tk.Listbox(self.mobile)
+            self.coupon_lb.place(x=0, y=50, width=300, height=400)
+            self.insert_lb()
+            self.mobile.protocol("WM_DELETE_WINDOW", self.show_coupon)
+        else:
+            self.check_open_tk = 0
+            self.mobile.destroy()
 
     def check_coupon(self, ent):
         self.cur2.execute("SELECT couponID, menuID, discntPrice FROM couponTable")
