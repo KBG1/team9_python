@@ -182,6 +182,10 @@ class CouponPage(Sharing):
         self.announce_frm = tk.Frame(self, width=480, height=150, relief="solid", bd=1)
         self.announce_frm.pack(fill="both", expand=True)
         self.announce_frm.propagate(False)
+        # 이미지 프레임
+        self.cp_img_frm = tk.Frame(self, width=480, height=550, relief="solid",bd=1)
+        self.cp_img_frm.pack(fill="both", expand=True)
+        self.announce_frm.propagate(False)
         # 입력 프레임
         self.entry_frm = tk.Frame(self, width=480, height=100, relief="solid", bd=1)
         self.entry_frm.pack(fill="both", expand=True)
@@ -197,9 +201,9 @@ class CouponPage(Sharing):
 
         # in entry frame #
         self.ent = tk.Entry(self.entry_frm)
-        self.ent.place(width=250, height=50)
+        self.ent.place(x=115, y=0, width=250, height=50)
         self.ok_btn = tk.Button(self.entry_frm, text="확인", command=lambda: self.check_coupon(str(self.ent.get())))
-        self.ok_btn.place(width=50, height=30)
+        self.ok_btn.place(x=215, y=50, width=50, height=30)
 
     def show_coupon(self):
         self.cur2.execute("SELECT * FROM couponTable")
