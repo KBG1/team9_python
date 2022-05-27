@@ -58,6 +58,8 @@ class MenuInfo:
     menu_price = {10001: 8000, 10002: 3000, 10003: 1500}
     # 주문 총액(할인 전)
     order_ttl = 0
+    # 할인금액
+    discnt_price = 0
 
 
 # 쿠폰 관련 정보 #
@@ -65,7 +67,7 @@ class Coupon:
     # 쿠폰타입-할인 금액에 따른 쿠폰 종류
     coupon_type = {0: "전액", 1: "10%", 2: "30%", 3: "50%"}
     # 쿠폰타입-할인율
-    discnt_price = {0: 1, 1: 0.1, 2: 0.3, 3: 0.5}
+    discnt_rate = {0: 1, 1: 0.1, 2: 0.3, 3: 0.5}
 
 
 # 사용된 이미지 리스트 #
@@ -117,7 +119,7 @@ class OpenDB:
             temp1 = random.choice(list(MenuInfo.menu_code.keys()))
             temp2 = random.choice(list(Coupon.coupon_type.keys()))
             # 할인금액(할인되는 금액)
-            temp3 = MenuInfo.menu_price[temp1] * Coupon.discnt_price[temp2]
+            temp3 = MenuInfo.menu_price[temp1] * Coupon.discnt_rate[temp2]
             self.cur2.execute(sql, (temp0, temp1, temp2, temp3))
             self.coupon_DB.commit()
 
@@ -215,6 +217,17 @@ class CouponPage(Sharing):
                                 command=lambda: self.check_coupon(master, str(self.ent.get())))
         self.ok_btn.place(x=215, y=50, width=50, height=30)
 
+    def create_mobile(self):
+        self.mobile = tk.Toplevel(app)
+        self.mobile.geometry("400x600+80+20")
+        tk.Label(self.mobile, text="사용 가능한 쿠폰", font=self.font2).pack()
+        self.coupon_tbl = ttk.Treeview(self.mobile, columns=["쿠폰코드", "적용메뉴", "유형", "할인금액"],
+                                       displaycolumns=["쿠폰코드", "적용메뉴", "유형", "할인금액"])
+        self.coupon_tbl.place(x=0, y=50, width=400, height=400)
+        self.set_table()
+        self.mobile.protocol("WM_DELETE_WINDOW", self.show_coupon)
+
+    # 작동에 문제는 없는데 거슬리니까 수정
     def set_table(self):
         self.coupon_tbl.column("#0", width=150, anchor="center")
         self.coupon_tbl.heading("#0", text="쿠폰코드", anchor="center")
@@ -234,16 +247,6 @@ class CouponPage(Sharing):
             cptype = Coupon.coupon_type[coupon[2]]
             self.coupon_tbl.insert('', 'end', text=coupon[0], values=(mnname, cptype, coupon[3]),)
 
-    def create_mobile(self):
-        self.mobile = tk.Toplevel(app)
-        self.mobile.geometry("400x600+80+20")
-        tk.Label(self.mobile, text="사용 가능한 쿠폰", font=self.font2).pack()
-        self.coupon_tbl = ttk.Treeview(self.mobile, columns=["쿠폰코드", "적용메뉴", "유형", "할인금액"],
-                                       displaycolumns=["쿠폰코드", "적용메뉴", "유형", "할인금액"])
-        self.coupon_tbl.place(x=0, y=50, width=400, height=400)
-        self.set_table()
-        self.mobile.protocol("WM_DELETE_WINDOW", self.show_coupon)
-
     def show_coupon(self):
         if self.check_open_tk == 0:
             self.check_open_tk = 1
@@ -260,6 +263,7 @@ class CouponPage(Sharing):
                 print("Right")
                 sql = "INSERT INTO orderTable(menuID, menuName, quantity, finalCost) VALUES(?, ?, ?, ?)"
                 MenuInfo.order_ttl = MenuInfo.menu_price[code[1]] - code[2]
+                MenuInfo.discnt_price = code[2]
                 vals = (code[1], MenuInfo.menu_code[code[1]], 1, MenuInfo.order_ttl)
                 self.cur.execute(sql, vals)
                 self.order_DB.commit()
@@ -705,7 +709,6 @@ class DisCountRewards(Sharing):
         if PersonalCard.final_cost >= PersonalCard.rewards_point:
             print("비교 작동확인\n")
             PersonalCard.final_cost = PersonalCard.final_cost - PersonalCard.rewards_point
-            PersonalCard.rewards_point = 0
         else:
             print("비교2 작동확인\n")
             PersonalCard.rewards_point = PersonalCard.rewards_point - PersonalCard.final_cost
@@ -713,8 +716,10 @@ class DisCountRewards(Sharing):
         # 최종 결제
         if PersonalCard.card_balance >= PersonalCard.final_cost:
             print("정상결제 작동확인\n")
+            PersonalCard.rewards_point = 0
             PersonalCard.card_balance = PersonalCard.card_balance - PersonalCard.final_cost
             PersonalCard.rewards_point = PersonalCard.rewards_point + PersonalCard.final_cost * 0.01
+            MenuInfo.discnt_price = MenuInfo.order_ttl - PersonalCard.final_cost
             master.switch_frame(ReceiptPage)
         else:
             print("금액부족 작동확인\n")
@@ -773,7 +778,7 @@ class ReceiptPage(Sharing):
             tk.Label(receipt_tk, text="%s     %d     %d" % (row[0], row[1], row[2]), font=self.font2).pack()
         tk.Label(receipt_tk, text="=========================", font=self.font2).pack()
         tk.Label(receipt_tk, text="총액     %d 원" % MenuInfo.order_ttl, font=self.font2).pack()
-        tk.Label(receipt_tk, text="할인 금액        %d 원" % (MenuInfo.order_ttl - PersonalCard.final_cost),
+        tk.Label(receipt_tk, text="할인 금액        %d 원" % MenuInfo.discnt_price,
                  font=self.font2).pack()
         tk.Label(receipt_tk, text="결제 금액        %d 원" % PersonalCard.final_cost, font=self.font2).pack()
         tk.Label(receipt_tk, text="카드 잔액        %d 원" % PersonalCard.card_balance, font=self.font2).pack()
@@ -789,6 +794,7 @@ class ReceiptPage(Sharing):
         self.coupon_DB.close()
         PersonalCard.final_cost = 0
         MenuInfo.order_ttl = 0
+        MenuInfo.discnt_price = 0
 
 
 app = DemoPro()
