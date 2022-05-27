@@ -105,7 +105,7 @@ class OpenDB:
         self.order_DB = sql3.connect("orderDB")
         self.cur = self.order_DB.cursor()
         # couponTable column: couponID/menuName/type/discntPrice
-        # couponID: 쿠폰코드, menuName: 메뉴명, type: 종류(기프티콘/할인), discntPrice: 할인금액
+        # couponID: 쿠폰코드, menuID: 메뉴코드, type: 종류(기프티콘/할인), discntPrice: 할인금액
         self.coupon_DB = sql3.connect("couponDB")
         self.cur2 = self.coupon_DB.cursor()
 
@@ -115,12 +115,10 @@ class OpenDB:
         for i in range(num_of_coupons):
             temp0 = uuid.uuid4()
             temp1 = random.choice(list(MenuInfo.menu_code.keys()))
-            temp = MenuInfo.menu_code[temp1]
             temp2 = random.choice(list(Coupon.coupon_type.keys()))
-
             # 할인금액(할인되는 금액)
             temp3 = MenuInfo.menu_price[temp1] * Coupon.discnt_price[temp2]
-            self.cur2.execute(sql, (str(temp0), temp, temp2, temp3))
+            self.cur2.execute(sql, (str(temp0), temp1, temp2, temp3))
             self.coupon_DB.commit()
 
 
@@ -210,16 +208,25 @@ class CouponPage(Sharing):
         while True:
             couponlist = self.cur2.fetchone()
             if couponlist is None: break
-            code = couponlist[2]
-            self.coupon_lb.insert(0, "%s %s %s %d" % (couponlist[0], couponlist[1], Coupon.coupon_type[code], couponlist[3]))
+            mnname = MenuInfo.menu_code[couponlist[1]]
+            cptype = Coupon.coupon_type[couponlist[2]]
+            self.coupon_lb.insert(0, "%s %s %s %d" % (couponlist[0], mnname, cptype, couponlist[3]))
 
     def check_coupon(self, ent):
-        self.cur2.execute("SELECT couponID FROM couponTable")
+        self.cur2.execute("SELECT couponID, menuID, discntPrice FROM couponTable")
         cp_code = self.cur2.fetchall()
         for code in cp_code:
             if code[0] == ent:
                 print("Right")
-
+                sql = "INSERT INTO orderTable(menuID, menuName, quantity, finalCost) VALUES(?, ?, ?, ?)"
+                vals = (code[1], MenuInfo.menu_code[code[1]], 1, MenuInfo.menu_price[code[1]] - code[2])
+                self.cur.execute(sql, vals)
+                self.order_DB.commit()
+                return
+        # 일치하는 쿠폰이 없을 경우 메세지 출력
+        msg = tk.Toplevel(app)
+        tk.Label(msg, text="쿠폰이 존재하지 않습니다.").pack()
+        self.ent.delete(0, "end")
 
 
 # 테이크아웃 여부 확인 페이지 #
@@ -335,6 +342,7 @@ class MainPage(Sharing):
         # 메뉴 세부사항 선택창 
         entry_tk = tk.Toplevel(app)
         entry_tk.geometry("480x600+500+120")
+        entry_tk.protocol('WM_DELETE_WINDOW', tk.DISABLED)  # 추가1
         # 메뉴 사진란
         tk.Button(entry_tk, text="메뉴사진", relief="flat").place(x=25, y=30, width=100, height=100)
         tk.Label(entry_tk, text="%s" % MenuInfo.menu_code[code]).place(x=150, y=30)
