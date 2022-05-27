@@ -1,5 +1,5 @@
 import tkinter as tk                # for window
-import tkinter.ttk as ttk                # for couponlist
+import tkinter.ttk as ttk           # for couponlist
 import tkinter.font as tkfont       # for font
 from PIL import Image, ImageTk      # for image
 import sqlite3 as sql3              # for DB
@@ -113,7 +113,7 @@ class OpenDB:
         num_of_coupons = 4
         sql = "INSERT INTO couponTable VALUES (?, ?, ?, ?)"
         for i in range(num_of_coupons):
-            temp0 = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(12))
+            temp0 = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(7))
             temp1 = random.choice(list(MenuInfo.menu_code.keys()))
             temp2 = random.choice(list(Coupon.coupon_type.keys()))
             # 할인금액(할인되는 금액)
@@ -211,7 +211,8 @@ class CouponPage(Sharing):
         # in entry frame #
         self.ent = tk.Entry(self.entry_frm)
         self.ent.place(x=115, y=0, width=250, height=50)
-        self.ok_btn = tk.Button(self.entry_frm, text="확인", command=lambda: self.check_coupon(str(self.ent.get())))
+        self.ok_btn = tk.Button(self.entry_frm, text="확인",
+                                command=lambda: self.check_coupon(master, str(self.ent.get())))
         self.ok_btn.place(x=215, y=50, width=50, height=30)
 
     def set_table(self):
@@ -251,16 +252,18 @@ class CouponPage(Sharing):
             self.check_open_tk = 0
             self.mobile.destroy()
 
-    def check_coupon(self, ent):
+    def check_coupon(self, master, ent):
         self.cur2.execute("SELECT couponID, menuID, discntPrice FROM couponTable")
         cp_code = self.cur2.fetchall()
         for code in cp_code:
             if code[0] == ent:
                 print("Right")
                 sql = "INSERT INTO orderTable(menuID, menuName, quantity, finalCost) VALUES(?, ?, ?, ?)"
-                vals = (code[1], MenuInfo.menu_code[code[1]], 1, MenuInfo.menu_price[code[1]] - code[2])
+                MenuInfo.order_ttl = MenuInfo.menu_price[code[1]] - code[2]
+                vals = (code[1], MenuInfo.menu_code[code[1]], 1, MenuInfo.order_ttl)
                 self.cur.execute(sql, vals)
                 self.order_DB.commit()
+                master.switch_frame(MainPage)
                 return
         # 일치하는 쿠폰이 없을 경우 메세지 출력
         msg = tk.Toplevel(app)
@@ -305,7 +308,7 @@ class MainPage(Sharing):
         Sharing.__init__(self, master)
 
         # 초기화 - 임시로 수정함. 뒤로가기 등에 대비해 다시 수정 필요 #
-        MenuInfo.order_ttl = 0
+        # MenuInfo.order_ttl = 0
         # 메뉴 선택창 열렸는지 체크하는 변수 #
         self.ent_open_check = 0
 
@@ -345,6 +348,7 @@ class MainPage(Sharing):
         # 장바구니
         self.cart_lbox = tk.Listbox(self.cart_frm, width=60, height=5)
         self.cart_lbox.place(x=0, y=0, width=280, height=100)
+        self.enter_cart()
         # 총액 정보란
         tk.Label(self.cart_frm, text="총액", font=self.font2).place(x=280, y=0)
         self.ttlprice_lb = tk.Listbox(self.cart_frm, relief="flat", bd=0)
@@ -355,7 +359,7 @@ class MainPage(Sharing):
                   command=self.reset_cart).place(x=280, y=70, width=120, height=30)
         # 결제하기 버튼 - OrderCheckPage로 프레임 전환
         tk.Button(self.cart_frm, image=self.mv_pay_btn_img, relief="flat", bd=0,
-                  command=lambda: self.check_order(master)).place(x=400, y=0, width=80, height=100)
+                  command=lambda: master.switch_frame(OrderCheckPage)).place(x=400, y=0, width=80, height=100)
 
         # in menu frame #
         # 카드 잔액 정보
@@ -483,6 +487,7 @@ class MainPage(Sharing):
         for code in MenuInfo.menu_quantity.keys():
             MenuInfo.menu_quantity[code] = 0
 
+    # 쿠폰 사용에 대비해서 수정
     def check_order(self, master):
         if MenuInfo.order_ttl != 0:
             master.switch_frame(OrderCheckPage)
