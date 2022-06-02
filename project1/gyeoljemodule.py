@@ -260,8 +260,8 @@ class CouponPage(Sharing):
                 print("Right")
                 MenuInfo.menu_quantity[code[1]] += 1
                 sql = "INSERT INTO orderTable(menuID, menuName, quantity, finalCost) VALUES(?, ?, ?, ?)"
-                MenuInfo.order_ttl = MenuInfo.menu_price[code[1]] - code[2]
-                vals = (code[1], MenuInfo.menu_code[code[1]], 1, MenuInfo.order_ttl)
+                PersonalCard.final_cost = MenuInfo.menu_price[code[1]] - code[2]
+                vals = (code[1], MenuInfo.menu_code[code[1]], 1, PersonalCard.final_cost)
                 self.cur.execute(sql, vals)
                 self.order_DB.commit()
                 master.switch_frame(MainPage)
@@ -354,7 +354,7 @@ class MainPage(Sharing):
         tk.Label(self.cart_frm, text="총액", font=self.font2).place(x=280, y=0)
         self.ttlprice_lb = tk.Listbox(self.cart_frm, relief="flat", bd=0)
         self.ttlprice_lb.place(x=280, y=30, width=120, height=50)
-        self.ttlprice_lb.insert(0, "￦ %d" % MenuInfo.order_ttl)
+        self.ttlprice_lb.insert(0, "￦ %d" % PersonalCard.final_cost)
         # 전체취소 버튼 - DB, 장바구니, 총액 리셋
         tk.Button(self.cart_frm, image=self.reset_btn_img, relief="flat", bd=0,
                   command=self.reset_cart).place(x=280, y=70, width=120, height=30)
@@ -368,17 +368,17 @@ class MainPage(Sharing):
 
     # 총액 계산 #
     def calcul_sum(self):
-        MenuInfo.order_ttl = 0
+        PersonalCard.final_cost = 0
         # DB에서 finalCost 받아옴
         self.cur.execute("SELECT finalCost FROM orderTable")
         # DB에 존재하는 finalCost 모두 더해서 총액 계산
         while True:
             cost = self.cur.fetchone()
             if cost is None: break
-            MenuInfo.order_ttl = MenuInfo.order_ttl + cost[0]
+            PersonalCard.final_cost += cost[0]
         # 총액 정보란 표시 업데이트
         self.ttlprice_lb.delete(0, "end")
-        self.ttlprice_lb.insert(0, "￦ %d" % MenuInfo.order_ttl)
+        self.ttlprice_lb.insert(0, "￦ %d" % PersonalCard.final_cost)
 
     # 메뉴 세부사항 선택창 띄우기 #
     def open_entry(self, code):
@@ -458,7 +458,6 @@ class MainPage(Sharing):
                         ttlprice = row[1]
                         ttlprice += quantity * MenuInfo.menu_price[code]
                         MenuInfo.menu_quantity[code] += quantity
-                        # ttlprice = MenuInfo.menu_price[code] * MenuInfo.menu_quantity[code]
                         sql = "UPDATE orderTable SET quantity = ?, finalCost = ?,\
                                updateTime = datetime('now', 'localtime') WHERE menuID = ?"
                         self.cur.execute(sql, (MenuInfo.menu_quantity[code], ttlprice, code))
@@ -467,8 +466,8 @@ class MainPage(Sharing):
                 # DB에 존재하지 않는 메뉴면 새로 추가
                 mncode = code
                 mnname = MenuInfo.menu_code[code]
-                MenuInfo.menu_quantity[code] = quantity
                 ttlprice = MenuInfo.menu_price[code] * quantity
+                MenuInfo.menu_quantity[code] = quantity
                 sql = "INSERT INTO orderTable(menuID, menuName, quantity, finalCost) VALUES(?, ?, ?, ?)"
                 vals = (mncode, mnname, quantity, ttlprice)
                 self.cur.execute(sql, vals)
@@ -484,15 +483,16 @@ class MainPage(Sharing):
         self.cart_lbox.delete(0, "end")
         # 총액 정보 초기화
         MenuInfo.order_ttl = 0
+        PersonalCard.final_cost = 0
         self.ttlprice_lb.delete(0, "end")
-        self.ttlprice_lb.insert(0, "￦ %d" % MenuInfo.order_ttl)
+        self.ttlprice_lb.insert(0, "￦ %d" % 0)
         # 메뉴 수량 초기화
         for code in MenuInfo.menu_quantity.keys():
             MenuInfo.menu_quantity[code] = 0
 
     # 쿠폰 사용에 대비해서 수정
     def check_order(self, master):
-        if MenuInfo.order_ttl != 0:
+        if PersonalCard.final_cost != 0:
             master.switch_frame(OrderCheckPage)
 
 
@@ -521,7 +521,7 @@ class OrderCheckPage(Sharing):
 
         # in announce frame #
         # 총액 정보란
-        self.ordercost = tk.Label(self.announce_frm, text="합계          %d" % MenuInfo.order_ttl,
+        self.ordercost = tk.Label(self.announce_frm, text="합계          %d" % PersonalCard.final_cost,
                                   width=480, height=100, font=self.font2)
         self.ordercost.pack()
 
@@ -624,14 +624,9 @@ class DisCountPage(Sharing):
         # DB에서 finalCost 불러와서 전부 더하고 최종 결제금액->PersonalCard.final_cost
         # 카드 잔액에서 최종 결제금액만큼 제함->PersonalCard.card_balance
         # 적립금 1% 적립->PersonalCard.rewards_point
-        self.cur.execute("SELECT finalCost FROM orderTable")
-        cost_list = self.cur.fetchall()
-        for cost_data in cost_list:
-            PersonalCard.final_cost = PersonalCard.final_cost + cost_data[0]
-        print("작동확인\n")
         if PersonalCard.card_balance >= PersonalCard.final_cost:
             print("정상결제 작동확인\n")
-            PersonalCard.card_balance = PersonalCard.card_balance - PersonalCard.final_cost
+            PersonalCard.card_balance -= PersonalCard.final_cost
             PersonalCard.rewards_point = PersonalCard.final_cost * 0.01
             master.switch_frame(ReceiptPage)
         else:
@@ -671,14 +666,14 @@ class DisCountRewards(Sharing):
         # 적립금이 5000점 이상인 경우 할인 후 결제 금액 출력
         else:
             # 적립금이 결제 금액 이상인 경우
-            if PersonalCard.rewards_point >= MenuInfo.order_ttl:
+            if PersonalCard.rewards_point >= PersonalCard.final_cost:
                 self.announce3 = tk.Label(self.announce_frm,
                                           text="할인 후 결제 금액 %d" % 0)
                 self.announce3.place(x=0, y=60, width=480, height=30)
             # 결제 금액이 적립금 이상인 경우
             else:
                 self.announce3 = tk.Label(self.announce_frm,
-                                          text="할인 후 결제 금액 %d" % (MenuInfo.order_ttl - PersonalCard.rewards_point))
+                                          text="할인 후 결제 금액 %d" % (PersonalCard.final_cost - PersonalCard.rewards_point))
                 self.announce3.place(x=0, y=60, width=480, height=30)
 
         # in button frame #
@@ -702,22 +697,23 @@ class DisCountRewards(Sharing):
         self.cur.execute("SELECT finalCost FROM orderTable")
         cost_list = self.cur.fetchall()
         for cost_data in cost_list:
-            PersonalCard.final_cost = PersonalCard.final_cost + cost_data[0]
+            PersonalCard.final_cost += cost_data[0]
+            print("%d\n" % PersonalCard.final_cost)
         print("작동확인\n")
         # 적립금과 총액 크기 비교해서 계산
         if PersonalCard.final_cost >= PersonalCard.rewards_point:
             print("비교 작동확인\n")
-            PersonalCard.final_cost = PersonalCard.final_cost - PersonalCard.rewards_point
+            PersonalCard.final_cost -= PersonalCard.rewards_point
             PersonalCard.rewards_point = 0
         else:
             print("비교2 작동확인\n")
-            PersonalCard.rewards_point = PersonalCard.rewards_point - PersonalCard.final_cost
+            PersonalCard.rewards_point -= PersonalCard.final_cost
             PersonalCard.final_cost = 0
         # 최종 결제
         if PersonalCard.card_balance >= PersonalCard.final_cost:
             print("정상결제 작동확인\n")
-            PersonalCard.card_balance = PersonalCard.card_balance - PersonalCard.final_cost
-            PersonalCard.rewards_point = PersonalCard.rewards_point + PersonalCard.final_cost * 0.01
+            PersonalCard.card_balance -= PersonalCard.final_cost
+            PersonalCard.rewards_point += PersonalCard.final_cost * 0.01
             master.switch_frame(ReceiptPage)
         else:
             print("금액부족 작동확인\n")
@@ -757,6 +753,15 @@ class ReceiptPage(Sharing):
                                        command=self.new_tk_receipt)
         self.show_rcpt_btn.pack(side="left")
 
+        self.calcul_origcost()
+
+    # (원래)최종가격 계산 함수 #
+    def calcul_origcost(self):
+        for code in MenuInfo.menu_code.keys():
+            if MenuInfo.menu_quantity[code] != 0:
+                MenuInfo.order_ttl += MenuInfo.menu_price[code] * MenuInfo.menu_quantity[code]
+        print(MenuInfo.order_ttl)
+
     # 영수증 출력 함수 #
     def new_tk_receipt(self):
         # 영수증창 띄움
@@ -775,7 +780,7 @@ class ReceiptPage(Sharing):
                 break
             tk.Label(receipt_tk, text="%s     %d     %d" % (row[0], row[1], row[2]), font=self.font2).pack()
         tk.Label(receipt_tk, text="=========================", font=self.font2).pack()
-        tk.Label(receipt_tk, text="총액     %d 원" % MenuInfo.order_ttl, font=self.font2).pack()
+        tk.Label(receipt_tk, text="총액     %d 원" % PersonalCard.final_cost, font=self.font2).pack()
         tk.Label(receipt_tk, text="할인 금액        %d 원" % (MenuInfo.order_ttl - PersonalCard.final_cost),
                  font=self.font2).pack()
         tk.Label(receipt_tk, text="결제 금액        %d 원" % PersonalCard.final_cost, font=self.font2).pack()
